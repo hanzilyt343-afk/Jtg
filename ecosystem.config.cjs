@@ -1,12 +1,12 @@
 module.exports = {
   apps: [
     {
-      name: "jtg-panel",
+      name: "mine-panel",
       script: "npm",
       args: "run start",
       env: {
         NODE_ENV: "production",
-        PORT: 6767,
+        PORT: 2001,
       },
     },
   ],
