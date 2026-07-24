@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import { Server, Plus } from "lucide-react";
-import { motion } from "framer-motion";
+import { Server, Plus, Search, Filter, ArrowUpRight, Cpu, HardDrive, Layers } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import ServerLiveStats from "../components/ServerLiveStats";
 
 export default function ServerList() {
   const [servers, setServers] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "online" | "offline">("all");
   const { user } = useAuth();
 
   const fetchServers = async () => {
     try {
       const res = await axios.get("/api/servers");
       setServers(res.data);
-    } catch(e) {}
+    } catch(e) {
+      console.error("Failed to fetch servers", e);
+    }
   };
 
   useEffect(() => {
@@ -23,16 +27,23 @@ export default function ServerList() {
     return () => clearInterval(interval);
   }, []);
 
+  const filteredServers = servers.filter((server) => {
+    const matchesSearch = server.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          server.version?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || server.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   const container = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: { staggerChildren: 0.05 }
+      transition: { staggerChildren: 0.06 }
     }
   };
 
   const itemAnim = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 15 },
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
@@ -42,88 +53,164 @@ export default function ServerList() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -15 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="p-5 md:p-10 max-w-7xl mx-auto"
+      className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 text-gray-100"
     >
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
-        <div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-2 drop-shadow-lg">Instances</h1>
-          <p className="text-indigo-400/80 font-bold uppercase tracking-widest text-sm mt-2">Manage and monitor your server fleet.</p>
+      {/* Top Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-black/40 backdrop-blur-2xl p-6 md:p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-sky-500/10 blur-[90px] pointer-events-none rounded-full" />
+        <div className="relative z-10">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">Server Instances</h1>
+          <p className="text-xs md:text-sm font-semibold text-gray-400 mt-1">Manage and monitor your active server fleet.</p>
         </div>
+        
         {user?.role === "admin" && (
-          <Link to="/servers/create" className="px-5 py-2.5 bg-white text-black font-semibold rounded-xl hover:bg-zinc-200 transition-colors shadow-lg shadow-white/10 text-sm whitespace-nowrap inline-flex items-center self-start md:self-auto">
-            <Plus size={18} className="mr-2" />
-            New Instance
+          <Link 
+            to="/servers/create" 
+            className="px-5 py-3 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-bold rounded-2xl transition-all shadow-lg shadow-sky-500/20 text-xs md:text-sm whitespace-nowrap inline-flex items-center gap-2 self-start md:self-auto relative z-10"
+          >
+            <Plus size={18} />
+            <span>Deploy Instance</span>
           </Link>
         )}
       </div>
 
-      <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-4 md:gap-6">
-        {servers.map(server => (
-          <motion.div variants={itemAnim} key={server.id} className="bg-black/40 backdrop-blur-xl rounded-3xl border border-white/10 p-5 md:p-6 flex flex-col group hover:bg-black/60 transition-all shadow-[0_0_40px_-15px_rgba(0,0,0,0.5)] ring-1 ring-white/5 relative overflow-hidden">
-            {/* Subtle top glow based on status */}
-            <div className={`absolute top-0 left-0 right-0 h-[2px] opacity-70 ${server.status === 'online' ? 'bg-gradient-to-r from-transparent via-emerald-500 to-transparent shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-gradient-to-r from-transparent via-zinc-500 to-transparent'}`} />
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 to-transparent opacity-0 group-hover:opacity-10 transition-opacity" />
-            
-            <Link to={`/servers/${server.id}`} className="block flex-1 z-10 relative">
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-center group-hover:border-indigo-500/40 group-hover:bg-indigo-500/20 transition-all shadow-inner relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <Server className="w-7 h-7 text-zinc-400 group-hover:text-indigo-400 transition-colors relative z-10" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold tracking-tight text-white text-xl group-hover:text-indigo-300 transition-colors drop-shadow-sm">{server.name}</h2>
-                    <div className="flex items-center mt-1.5 space-x-2">
-                       <span className="flex h-2.5 w-2.5 relative">
+      {/* Filters & Search Toolbar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* Search Input */}
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input 
+            type="text"
+            placeholder="Search instances by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-black/40 backdrop-blur-xl border border-white/10 focus:border-sky-500/50 rounded-2xl py-2.5 pl-11 pr-4 text-xs md:text-sm text-white placeholder-gray-500 outline-none transition-all shadow-lg"
+          />
+        </div>
+
+        {/* Status Filter Buttons */}
+        <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-xl p-1.5 border border-white/10 rounded-2xl w-full sm:w-auto justify-center">
+          {(["all", "online", "offline"] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+                statusFilter === status 
+                  ? "bg-white/10 text-white shadow-inner border border-white/10" 
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              {status}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Server Grid/List */}
+      <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 gap-4 md:gap-5">
+        <AnimatePresence>
+          {filteredServers.map(server => (
+            <motion.div 
+              variants={itemAnim} 
+              key={server.id} 
+              layout
+              className="bg-black/50 backdrop-blur-2xl rounded-3xl border border-white/10 p-5 md:p-6 flex flex-col group hover:bg-black/70 transition-all shadow-2xl relative overflow-hidden"
+            >
+              {/* Dynamic Status Glow Line */}
+              <div 
+                className={`absolute top-0 left-0 right-0 h-[2px] opacity-80 ${
+                  server.status === 'online' 
+                    ? 'bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_rgba(52,211,153,0.8)]' 
+                    : 'bg-gradient-to-r from-transparent via-gray-600 to-transparent'
+                }`} 
+              />
+              
+              <Link to={`/servers/${server.id}`} className="block flex-1 z-10 relative">
+                {/* Header row in Card */}
+                <div className="flex justify-between items-start mb-5">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-sky-500/40 group-hover:bg-sky-500/10 transition-all shadow-inner">
+                      <Server className="w-6 h-6 text-gray-400 group-hover:text-sky-400 transition-colors" />
+                    </div>
+                    <div>
+                      <h2 className="font-bold tracking-tight text-white text-base md:text-lg group-hover:text-sky-300 transition-colors drop-shadow-sm">
+                        {server.name}
+                      </h2>
+                      <div className="flex items-center mt-1 space-x-2">
+                        <span className="flex h-2 w-2 relative">
                           {server.status === 'online' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
-                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${server.status === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-zinc-600'}`}></span>
+                          <span className={`relative inline-flex rounded-full h-2 w-2 ${server.status === 'online' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-gray-600'}`}></span>
                         </span>
-                      <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">{server.status}</span>
+                        <span className="text-[10px] font-mono font-bold text-gray-400 uppercase tracking-widest">{server.status}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 py-4 border-y border-white/10 my-4 text-sm mt-auto bg-black/20 rounded-xl px-4">
-                <div>
-                  <p className="text-indigo-400/80 text-[10px] md:text-[11px] mb-1 font-bold uppercase tracking-[0.15em] drop-shadow-sm">CPU Limit</p>
-                  <p className="font-mono text-white font-bold text-xs md:text-sm">{server.cpu || 100} <span className="text-zinc-500 opacity-70">%</span></p>
-                </div>
-                <div>
-                  <p className="text-emerald-400/80 text-[10px] md:text-[11px] mb-1 font-bold uppercase tracking-[0.15em] drop-shadow-sm">RAM Usage</p>
-                  <div className="font-mono text-white font-bold text-xs md:text-sm">
-                    <ServerLiveStats serverId={server.id} limitRam={server.ram} status={server.status} />
+
+                  {/* Open Icon */}
+                  <div className="p-2 text-gray-400 group-hover:text-white group-hover:bg-white/10 rounded-xl transition-all">
+                    <ArrowUpRight className="w-5 h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
                 </div>
-                <div>
-                  <p className="text-orange-400/80 text-[10px] md:text-[11px] mb-1 font-bold uppercase tracking-[0.15em] drop-shadow-sm">Disk Limit</p>
-                  <p className="font-mono text-white font-bold text-xs md:text-sm">{server.disk || 10} <span className="text-zinc-500 opacity-70">GB</span></p>
+                
+                {/* Metrics Stats Banner */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 px-4 border border-white/5 my-2 bg-white/[0.02] rounded-2xl text-xs">
+                  <div>
+                    <p className="text-sky-400/80 text-[10px] font-mono font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <Cpu size={12} /> CPU Limit
+                    </p>
+                    <p className="font-mono text-white font-bold text-xs md:text-sm">{server.cpu || 100} <span className="text-gray-500">%</span></p>
+                  </div>
+                  <div>
+                    <p className="text-emerald-400/80 text-[10px] font-mono font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <Layers size={12} /> RAM Usage
+                    </p>
+                    <div className="font-mono text-white font-bold text-xs md:text-sm">
+                      <ServerLiveStats serverId={server.id} limitRam={server.ram} status={server.status} />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-amber-400/80 text-[10px] font-mono font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <HardDrive size={12} /> Disk Limit
+                    </p>
+                    <p className="font-mono text-white font-bold text-xs md:text-sm">{server.disk || 10} <span className="text-gray-500">GB</span></p>
+                  </div>
+                  <div>
+                    <p className="text-purple-400/80 text-[10px] font-mono font-bold uppercase tracking-wider mb-1">Version</p>
+                    <p className="text-white font-bold text-xs md:text-sm truncate font-mono" title={server.version}>
+                      {server.version || "N/A"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-purple-400/80 text-[10px] md:text-[11px] mb-1 font-bold uppercase tracking-[0.15em] drop-shadow-sm">Version</p>
-                  <p className="text-white font-bold text-xs md:text-sm truncate font-mono" title={server.version}>
-                    {server.version}
-                  </p>
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        ))}
-        {servers.length === 0 && (
-          <motion.div variants={itemAnim} className="col-span-full py-32 flex flex-col items-center justify-center text-zinc-500 border border-dashed border-white/10 rounded-3xl bg-white/[0.01]">
-            <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-6">
-                <Server className="w-8 h-8 opacity-50" />
+              </Link>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {/* Empty State */}
+        {filteredServers.length === 0 && (
+          <motion.div 
+            variants={itemAnim} 
+            className="col-span-full py-20 flex flex-col items-center justify-center text-gray-500 border border-dashed border-white/10 rounded-3xl bg-black/20"
+          >
+            <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/5">
+                <Server className="w-8 h-8 opacity-40 text-sky-400" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">No Instances Running</h3>
-            <p className="max-w-sm text-center mb-6 text-sm">You haven't deployed any servers yet. Create one to start managing your game instances.</p>
-            {user?.role === "admin" && (
-                <Link to="/servers/create" className="px-5 py-2.5 bg-white text-black font-semibold rounded-xl hover:bg-zinc-200 transition-colors shadow-lg shadow-white/10 text-sm">
-                    Deploy your first server
-                </Link>
+            <h3 className="text-lg font-bold text-white mb-1">No Instances Found</h3>
+            <p className="max-w-xs text-center text-xs text-gray-400 mb-6">
+              {searchQuery ? "No server matches your search filter." : "You haven't deployed any servers yet."}
+            </p>
+            {user?.role === "admin" && !searchQuery && (
+              <Link 
+                to="/servers/create" 
+                className="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-sky-500/20 text-xs"
+              >
+                Deploy your first instance
+              </Link>
             )}
           </motion.div>
         )}
       </motion.div>
     </motion.div>
   );
-}
+          }
+              
