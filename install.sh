@@ -34,7 +34,7 @@ install_panel() {
     fi
 
     # Clone from GitHub
-    git clone https://github.com/JishnuTheGamer/Jtg
+    git clone https://github.com/hanzilyt343-afk/Jtg
     
     # Navigate into the directory
     cd Jtg || { echo -e "${RED}[!] Failed to enter the directory!${NC}"; return; }
