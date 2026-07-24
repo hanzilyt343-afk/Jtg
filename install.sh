@@ -51,7 +51,7 @@ install_panel() {
     
     echo -e "\n${GREEN}==========================================${NC}"
     echo -e "${GREEN} [✓] Panel successfully installed and started!${NC}"
-    echo -e "${GREEN} MADE BY - JISHNU  | panel info  [Online] ${NC}"
+    echo -e "${GREEN} MADE BY - HANZIL  | panel info  [Online] ${NC}"
     echo -e "${GREEN}==========================================${NC}"
     
     # Return to the main directory
@@ -89,7 +89,7 @@ update_panel() {
 # Main menu loop
 while true; do
     echo -e "\n${YELLOW}========================================${NC}"
-    echo -e "${GREEN}       JTG PANEL MANAGER MENU           ${NC}"
+    echo -e "${GREEN}       MINE-PANEL MANAGER MENU           ${NC}"
     echo -e "${YELLOW}========================================${NC}"
     echo -e "${CYAN}1.${NC} Install Panel (Auto Setup)"
     echo -e "${CYAN}2.${NC} Update Panel"
