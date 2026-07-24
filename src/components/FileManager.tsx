@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react"; 
 import { LoadingOverlay } from "../components/LoadingOverlay";
 import axios from "axios";
-import { Folder, File, ArrowLeft, Upload, Trash2, Edit2, Save, Archive, Search, X, CheckSquare, Square, Download } from "lucide-react";
+import { 
+  Folder, FileText, ArrowLeft, Upload, Trash2, Edit2, Save, 
+  Archive, Search, X, CheckSquare, Square, Download, ChevronRight, FileCode
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function FileManager({ serverId }: { serverId: string }) {
@@ -49,13 +52,20 @@ export default function FileManager({ serverId }: { serverId: string }) {
     setPath("/" + parts.join("/"));
   };
 
+  const navigateToBreadcrumb = (index: number) => {
+    if (editingFile) setEditingFile(null);
+    const parts = path.split("/").filter(Boolean);
+    const newPath = "/" + parts.slice(0, index + 1).join("/");
+    setPath(newPath);
+  };
+
   const traverse = (dirName: string) => {
     setPath(path.endsWith("/") ? path + dirName : path + "/" + dirName);
   };
 
   const openFile = async (name: string) => {
-    if (!name.match(/\.(txt|json|yml|yaml|properties|log)$/)) {
-      alert("Only text formats are supported for editing.");
+    if (!name.match(/\.(txt|json|yml|yaml|properties|log|phar|ini|conf)$/i)) {
+      alert("Only text/config formats are supported for editing.");
       return;
     }
     const fullPath = path.endsWith("/") ? path + name : path + "/" + name;
@@ -78,7 +88,6 @@ export default function FileManager({ serverId }: { serverId: string }) {
         filePath: fullPath,
         content: fileContent
       });
-      console.log("File saved!");
     } catch(e) {
       console.error("Failed to save file.", e);
     } finally {
@@ -102,7 +111,6 @@ export default function FileManager({ serverId }: { serverId: string }) {
       fetchFiles();
     } catch(e) {
       console.error("Failed to delete files", e);
-      alert("Failed to delete files");
     } finally {
       setDeletingFile(null);
     }
@@ -144,7 +152,6 @@ export default function FileManager({ serverId }: { serverId: string }) {
       });
       setSelectedFiles(new Set());
       fetchFiles();
-      console.log("Unzipped successfully");
     } catch(e) {
       console.error("Failed to unzip", e);
     } finally {
@@ -198,7 +205,7 @@ export default function FileManager({ serverId }: { serverId: string }) {
       console.error("Upload failed", err);
     } finally {
       setUploadProgress(null);
-      e.target.value = ""; // clear input
+      e.target.value = "";
     }
   };
 
@@ -222,99 +229,106 @@ export default function FileManager({ serverId }: { serverId: string }) {
   };
 
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const pathParts = path.split("/").filter(Boolean);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden relative min-h-0 h-full w-full bg-transparent p-4 md:p-6">
-      <div className="p-4 md:p-6 mb-6 flex flex-col sm:flex-row items-center justify-between bg-black/40 backdrop-blur-xl rounded-3xl border border-white/10 shrink-0 gap-4 shadow-[0_0_40px_-15px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
-        <div className="flex items-center justify-between w-full sm:w-auto">
-          <div className="flex items-center space-x-3">
-            <button onClick={goUp} disabled={path === "/" && !editingFile} className="p-2 bg-gray-800/60 hover:bg-gray-700/60 rounded-lg text-gray-300 disabled:opacity-50 transition-colors">
-              <ArrowLeft size={18} />
-            </button>
-            <div className="font-mono text-sm font-bold text-white bg-black/60 px-4 py-2 rounded-xl border border-white/10 backdrop-blur-md shadow-inner max-w-[150px] sm:max-w-xs truncate tracking-tight">
-              {editingFile ? `Editing: ${editingFile}` : path}
-            </div>
-          </div>
+    <div className="flex-1 flex flex-col overflow-hidden relative min-h-0 h-full w-full bg-[#030408] p-4 md:p-6 text-gray-100 font-sans">
+      
+      {/* Top Header & Breadcrumb Bar */}
+      <div className="p-4 md:p-5 mb-5 flex flex-col sm:flex-row items-center justify-between bg-black/50 backdrop-blur-2xl rounded-2xl border border-white/10 shrink-0 gap-4 shadow-2xl">
+        <div className="flex items-center space-x-3 w-full sm:w-auto overflow-x-auto custom-scrollbar pb-1 sm:pb-0">
+          <button 
+            onClick={goUp} 
+            disabled={path === "/" && !editingFile} 
+            className="p-2.5 bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 rounded-xl text-gray-300 disabled:opacity-30 disabled:pointer-events-none transition-all shrink-0"
+          >
+            <ArrowLeft size={18} />
+          </button>
           
-          <div className="flex sm:hidden items-center space-x-2">
-            {!editingFile ? (
-              <div className="relative">
-                {uploadProgress !== null ? (
-                  <div className="flex items-center justify-center w-8 h-8 bg-indigo-600/50 rounded-lg border border-indigo-500/50 text-white">
-                    <div className="w-4 h-4 rounded-full border-2 border-indigo-200 border-t-transparent animate-spin"></div>
-                  </div>
-                ) : (
-                  <label className="flex items-center justify-center w-8 h-8 bg-indigo-600/90 hover:bg-indigo-500/90 rounded-lg text-white transition-colors cursor-pointer">
-                    <input 
-                      type="file" 
-                      onChange={handleFileUpload} 
-                      className="hidden"
-                    />
-                    <Upload size={16} />
-                  </label>
-                )}
-              </div>
-            ) : (
-              <button disabled={isSaving} onClick={saveFile} className="flex items-center justify-center w-8 h-8 bg-blue-600 hover:bg-blue-500 rounded-lg text-white transition-colors disabled:opacity-50">
-                {isSaving ? <div className="w-4 h-4 rounded-full border-2 border-white/50 border-t-white animate-spin"></div> : <Save size={16} />}
-              </button>
+          {/* Breadcrumbs */}
+          <div className="flex items-center space-x-1.5 font-mono text-xs md:text-sm font-semibold bg-black/60 px-3.5 py-2 rounded-xl border border-white/10 backdrop-blur-md shadow-inner text-sky-400 overflow-x-auto whitespace-nowrap">
+            <span 
+              onClick={() => { setPath("/"); setEditingFile(null); }} 
+              className="hover:text-white cursor-pointer transition-colors"
+            >
+              root
+            </span>
+            {pathParts.map((part, idx) => (
+              <React.Fragment key={idx}>
+                <ChevronRight size={14} className="text-gray-600 shrink-0" />
+                <span 
+                  onClick={() => navigateToBreadcrumb(idx)} 
+                  className="hover:text-white cursor-pointer transition-colors max-w-[120px] truncate"
+                >
+                  {part}
+                </span>
+              </React.Fragment>
+            ))}
+            {editingFile && (
+              <>
+                <ChevronRight size={14} className="text-gray-600 shrink-0" />
+                <span className="text-amber-400 truncate">{editingFile}</span>
+              </>
             )}
           </div>
         </div>
         
+        {/* Search Bar */}
         {!editingFile && (
-          <div className="flex-1 w-full px-0 sm:px-4 order-last sm:order-none">
-            <div className="relative w-full max-w-2xl mx-auto shadow-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <div className="w-full sm:w-72 order-last sm:order-none">
+            <div className="relative w-full">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
               <input 
                 type="text" 
                 placeholder="Search files..." 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-600 rounded-full py-2.5 pl-10 pr-4 text-sm text-gray-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner"
+                className="w-full bg-white/5 border border-white/10 focus:border-sky-500/50 rounded-xl py-2 pl-9 pr-4 text-xs md:text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-sky-500/30 transition-all placeholder:text-gray-500"
               />
             </div>
           </div>
         )}
 
+        {/* Action Button (Upload / Save) */}
         {!editingFile ? (
-          <div className="relative hidden sm:block">
+          <div>
             {uploadProgress !== null ? (
-              <div className="flex items-center space-x-2 px-4 py-2 bg-indigo-600/50 rounded-lg text-sm font-medium border border-indigo-500/50 text-white">
-                <div className="w-4 h-4 rounded-full border-2 border-indigo-200 border-t-transparent animate-spin mr-1"></div>
+              <div className="flex items-center space-x-2 px-4 py-2 bg-sky-500/20 border border-sky-500/30 rounded-xl text-xs font-semibold text-sky-400">
+                <div className="w-4 h-4 rounded-full border-2 border-sky-400 border-t-transparent animate-spin"></div>
                 <span>{uploadProgress === 100 ? "Processing..." : `${uploadProgress}%`}</span>
               </div>
             ) : (
-              <label className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600/90 hover:bg-indigo-500/90 rounded-full text-sm font-medium text-white transition-colors backdrop-blur-sm shadow-lg shadow-indigo-500/20 cursor-pointer">
-                <input 
-                  type="file" 
-                  onChange={handleFileUpload} 
-                  className="hidden"
-                />
-                <Upload size={16} /> <span>Upload</span>
+              <label className="flex items-center space-x-2 px-4 py-2 bg-sky-600 hover:bg-sky-500 active:scale-95 rounded-xl text-xs font-bold text-white transition-all shadow-lg shadow-sky-500/20 cursor-pointer">
+                <input type="file" onChange={handleFileUpload} className="hidden" />
+                <Upload size={15} /> <span>Upload File</span>
               </label>
             )}
           </div>
         ) : (
-          <button disabled={isSaving} onClick={saveFile} className="hidden sm:flex items-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-full text-sm font-medium text-white transition-colors shadow-lg shadow-blue-500/20 disabled:opacity-50">
-            {isSaving ? <div className="w-4 h-4 rounded-full border-2 border-white/50 border-t-white animate-spin"></div> : <Save size={16} />}
-            <span>{isSaving ? "Saving..." : "Save"}</span>
+          <button 
+            disabled={isSaving} 
+            onClick={saveFile} 
+            className="flex items-center space-x-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded-xl text-xs font-bold text-white transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+          >
+            {isSaving ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div> : <Save size={15} />}
+            <span>{isSaving ? "Saving..." : "Save Changes"}</span>
           </button>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col min-h-0 relative">
+      {/* Main File Browser / Code Editor Body */}
+      <div className="flex-1 overflow-y-auto p-2 custom-scrollbar flex flex-col min-h-0 relative">
         <AnimatePresence mode="wait">
           {editingFile ? (
             <motion.div 
               key="editor"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
               className="flex-1 flex flex-col min-h-0"
             >
               <textarea 
                 value={fileContent} 
                 onChange={(e) => setFileContent(e.target.value)}
-                className="flex-1 w-full h-full bg-gray-950/60 border border-gray-700/50 rounded-xl p-4 text-gray-200 font-mono text-sm focus:outline-none focus:border-blue-500/50 resize-none custom-scrollbar min-h-0 shadow-inner"
+                className="flex-1 w-full h-full bg-black/60 border border-white/10 rounded-2xl p-5 text-sky-200 font-mono text-xs md:text-sm leading-relaxed focus:outline-none focus:border-sky-500/40 resize-none custom-scrollbar min-h-0 shadow-2xl"
                 spellCheck={false}
               />
             </motion.div>
@@ -322,34 +336,57 @@ export default function FileManager({ serverId }: { serverId: string }) {
             <motion.div 
               key="filelist"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="flex-1"
+              className="flex-1 space-y-1.5"
             >
-              {/* Header row with select all */}
+              {/* List Header */}
               {filteredFiles.length > 0 && (
-                <div className="flex items-center px-3 py-2 mb-2 border-b border-gray-700/50">
-                  <button onClick={toggleSelectAll} className="text-gray-400 hover:text-white mr-4 transition-colors">
-                    {selectedFiles.size === filteredFiles.length ? <CheckSquare size={18} className="text-indigo-400" /> : <Square size={18} />}
-                  </button>
-                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Name</span>
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  <div className="flex items-center space-x-3">
+                    <button onClick={toggleSelectAll} className="hover:text-white transition-colors">
+                      {selectedFiles.size === filteredFiles.length ? <CheckSquare size={16} className="text-sky-400" /> : <Square size={16} />}
+                    </button>
+                    <span>Name</span>
+                  </div>
+                  <span>Size</span>
                 </div>
               )}
 
-              {filteredFiles.length === 0 && <p className="text-gray-400 text-sm text-center py-10">Directory is empty or no files match search.</p>}
+              {filteredFiles.length === 0 && (
+                <div className="text-center py-16 text-gray-500 text-sm font-medium">
+                  Folder is empty or no files match search.
+                </div>
+              )}
               
+              {/* File Row */}
               {filteredFiles.map(f => {
                 const isSelected = selectedFiles.has(f.name);
                 return (
                   <div 
                     key={f.name} 
                     onClick={(e) => toggleSelectFile(f.name, e)}
-                    className={`flex items-center justify-between p-3 rounded-xl group transition-all cursor-pointer mb-1 border ${isSelected ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-gray-800/20 border-transparent hover:bg-gray-800/60 hover:border-gray-700/50'}`}
+                    className={`flex items-center justify-between px-4 py-3 rounded-xl group transition-all cursor-pointer border ${
+                      isSelected 
+                        ? 'bg-sky-500/10 border-sky-500/30 shadow-lg shadow-sky-500/5' 
+                        : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.07] hover:border-white/10'
+                    }`}
                   >
-                    <div className="flex items-center space-x-4 flex-1 overflow-hidden">
-                      <button onClick={(e) => toggleSelectFile(f.name, e)} className={`transition-colors shrink-0 ${isSelected ? 'text-indigo-400' : 'text-gray-500 group-hover:text-gray-400'}`}>
-                        {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                    <div className="flex items-center space-x-3.5 flex-1 overflow-hidden">
+                      <button onClick={(e) => toggleSelectFile(f.name, e)} className={`transition-colors ${isSelected ? 'text-sky-400' : 'text-gray-600 group-hover:text-gray-400'}`}>
+                        {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
                       </button>
-                      <div className="flex items-center space-x-3 flex-1 overflow-hidden hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); f.isDirectory ? traverse(f.name) : openFile(f.name); }}>
-                        {f.isDirectory ? <Folder className="text-blue-400 shrink-0" size={20} /> : <File className="text-gray-400 shrink-0" size={20} />}
+                      
+                      <div 
+                        className="flex items-center space-x-3 flex-1 overflow-hidden" 
+                        onClick={(e) => { e.stopPropagation(); f.isDirectory ? traverse(f.name) : openFile(f.name); }}
+                      >
+                        {f.isDirectory ? (
+                          <Folder className="text-amber-400 shrink-0" size={18} />
+                        ) : f.name.endsWith('.yml') || f.name.endsWith('.json') ? (
+                          <FileCode className="text-sky-400 shrink-0" size={18} />
+                        ) : (
+                          <FileText className="text-gray-400 shrink-0" size={18} />
+                        )}
+
                         {renamingFile === f.name ? (
                           <input 
                             autoFocus
@@ -359,15 +396,18 @@ export default function FileManager({ serverId }: { serverId: string }) {
                             onChange={e => setNewName(e.target.value)}
                             onBlur={() => handleRename(f.name)}
                             onKeyDown={e => e.key === 'Enter' && handleRename(f.name)}
-                            className="bg-gray-900/80 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-indigo-500/50 w-full"
+                            className="bg-black border border-sky-500 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none w-full max-w-xs"
                           />
                         ) : (
-                          <span className="font-medium text-gray-200 text-sm truncate">{f.name}</span>
+                          <span className="font-medium text-gray-200 text-xs md:text-sm truncate group-hover:text-sky-300 transition-colors">
+                            {f.name}
+                          </span>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2 md:space-x-4 pl-4 shrink-0">
-                      {!f.isDirectory && <span className="hidden sm:block text-xs text-gray-400 w-16 text-right">{(f.size/1024).toFixed(1)} KB</span>}
+
+                    <div className="text-xs text-gray-500 font-mono shrink-0 pl-4">
+                      {!f.isDirectory ? `${(f.size / 1024).toFixed(1)} KB` : "Folder"}
                     </div>
                   </div>
                 );
@@ -376,62 +416,52 @@ export default function FileManager({ serverId }: { serverId: string }) {
           )}
         </AnimatePresence>
 
-        {/* Floating Action Menu for Selected Files */}
+        {/* Floating Cyber Action Bar for Selected Items */}
         <AnimatePresence>
           {selectedFiles.size > 0 && !editingFile && (
             <motion.div 
-              initial={{ opacity: 0, y: 50 }} 
+              initial={{ opacity: 0, y: 30 }} 
               animate={{ opacity: 1, y: 0 }} 
-              exit={{ opacity: 0, y: 50 }}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-gray-800/90 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl p-2 flex items-center space-x-2 z-10"
+              exit={{ opacity: 0, y: 30 }}
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-2xl border border-sky-500/30 rounded-2xl shadow-2xl px-4 py-2 flex items-center space-x-3 z-30"
             >
-              <span className="px-3 text-sm font-medium text-gray-300">
-                {selectedFiles.size} selected
+              <span className="text-xs font-bold text-sky-400">
+                {selectedFiles.size} Selected
               </span>
-              <div className="h-6 w-px bg-gray-700"></div>
+              <div className="h-4 w-px bg-white/20"></div>
               
               {selectedFiles.size === 1 && (
                 <>
-                  <button onClick={handleRenameSelected} className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700/50 rounded-lg transition-colors" title="Rename">
-                    <Edit2 size={16} />
+                  <button onClick={handleRenameSelected} className="p-2 text-gray-300 hover:text-sky-400 hover:bg-white/10 rounded-xl transition-all" title="Rename">
+                    <Edit2 size={15} />
                   </button>
                   {(Array.from(selectedFiles)[0] as string).endsWith('.zip') && (
-                    <button onClick={handleUnzipSelected} disabled={isUnzipping} className="p-2 text-gray-400 hover:text-indigo-400 hover:bg-gray-700/50 rounded-lg transition-colors disabled:opacity-50" title="Unzip">
-                      {isUnzipping ? (
-                        <div className="w-4 h-4 rounded-full border-2 border-indigo-500/50 border-t-indigo-500 animate-spin"></div>
-                      ) : (
-                        <Archive size={16} />
-                      )}
+                    <button onClick={handleUnzipSelected} disabled={isUnzipping} className="p-2 text-gray-300 hover:text-amber-400 hover:bg-white/10 rounded-xl transition-all disabled:opacity-50" title="Extract Zip">
+                      {isUnzipping ? <div className="w-4 h-4 rounded-full border-2 border-amber-400 border-t-transparent animate-spin"></div> : <Archive size={15} />}
                     </button>
                   )}
                 </>
               )}
               
-              <button onClick={handleZipSelected} disabled={isZipping} className="p-2 text-gray-400 hover:text-green-400 hover:bg-gray-700/50 rounded-lg transition-colors disabled:opacity-50" title="Zip Selected">
-                {isZipping ? (
-                  <div className="w-4 h-4 rounded-full border-2 border-green-500/50 border-t-green-500 animate-spin"></div>
-                ) : (
-                  <Download size={16} />
-                )}
+              <button onClick={handleZipSelected} disabled={isZipping} className="p-2 text-gray-300 hover:text-emerald-400 hover:bg-white/10 rounded-xl transition-all disabled:opacity-50" title="Compress (Zip)">
+                {isZipping ? <div className="w-4 h-4 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin"></div> : <Download size={15} />}
               </button>
               
-              <button onClick={deleteSelectedFiles} disabled={deletingFile === "multiple"} className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700/50 rounded-lg transition-colors disabled:opacity-50" title="Delete Selected">
-                {deletingFile === "multiple" ? (
-                  <div className="w-4 h-4 rounded-full border-2 border-red-500/50 border-t-red-500 animate-spin"></div>
-                ) : (
-                  <Trash2 size={16} />
-                )}
+              <button onClick={deleteSelectedFiles} disabled={deletingFile === "multiple"} className="p-2 text-gray-300 hover:text-rose-400 hover:bg-white/10 rounded-xl transition-all disabled:opacity-50" title="Delete">
+                {deletingFile === "multiple" ? <div className="w-4 h-4 rounded-full border-2 border-rose-400 border-t-transparent animate-spin"></div> : <Trash2 size={15} />}
               </button>
 
-              <div className="h-6 w-px bg-gray-700"></div>
-              <button onClick={() => setSelectedFiles(new Set())} className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded-lg transition-colors" title="Clear Selection">
-                <X size={16} />
+              <div className="h-4 w-px bg-white/20"></div>
+              <button onClick={() => setSelectedFiles(new Set())} className="p-1.5 text-gray-400 hover:text-white rounded-lg transition-all" title="Clear">
+                <X size={15} />
               </button>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-          {(isUnzipping || isZipping || isSaving) && <LoadingOverlay />}
+
+      {(isUnzipping || isZipping || isSaving) && <LoadingOverlay />}
     </div>
   );
-}
+      }
+  
