@@ -96,7 +96,7 @@ async function startServer() {
   }
 
   httpServer.listen(PORT, () => {
-    console.log(`JTG Panel running on port ${PORT}`);
+    console.log(`MINE Panel running on port ${PORT}`);
   });
 }
 
