@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react"; 
 import { LoadingOverlay } from "../components/LoadingOverlay";
 import axios from "axios";
-import { Search, Download, RefreshCw, Puzzle, AlertCircle, Box, Server, Cpu } from "lucide-react";
+import { Search, Download, RefreshCw, Puzzle, AlertCircle, Box, Server, Cpu, Star, Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Plugin {
   id: string;
@@ -26,10 +27,8 @@ export default function PluginManager({ serverId }: { serverId: string }) {
       
       const q = searchQuery.trim() || 'essentials';
       const results: Plugin[] = [];
-      
       const promises = [];
       
-      // Create a clean axios instance for external requests so we don't send our auth token
       const externalAxios = axios.create();
       delete externalAxios.defaults.headers.common['Authorization'];
       
@@ -95,7 +94,6 @@ export default function PluginManager({ serverId }: { serverId: string }) {
       }
 
       await Promise.all(promises);
-      
       results.sort((a, b) => b.downloads - a.downloads);
       setPlugins(results);
     } catch (e) {
@@ -136,10 +134,19 @@ export default function PluginManager({ serverId }: { serverId: string }) {
 
   const getSourceIcon = (source: string) => {
     switch (source) {
-      case 'modrinth': return <Box className="w-3 h-3 text-green-400" />;
-      case 'spigot': return <Server className="w-3 h-3 text-orange-400" />;
-      case 'hangar': return <Cpu className="w-3 h-3 text-blue-400" />;
-      default: return <Puzzle className="w-3 h-3 text-indigo-400" />;
+      case 'modrinth': return <Box className="w-3.5 h-3.5 text-emerald-400" />;
+      case 'spigot': return <Server className="w-3.5 h-3.5 text-amber-400" />;
+      case 'hangar': return <Cpu className="w-3.5 h-3.5 text-sky-400" />;
+      default: return <Puzzle className="w-3.5 h-3.5 text-indigo-400" />;
+    }
+  };
+
+  const getSourceBadgeStyle = (source: string) => {
+    switch (source) {
+      case 'modrinth': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+      case 'spigot': return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+      case 'hangar': return 'bg-sky-500/10 text-sky-400 border-sky-500/30';
+      default: return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
     }
   };
 
@@ -147,97 +154,121 @@ export default function PluginManager({ serverId }: { serverId: string }) {
     switch (source) {
       case 'modrinth': return 'Modrinth';
       case 'spigot': return 'SpigotMC';
-      case 'hangar': return 'Paper Hangar';
+      case 'hangar': return 'Hangar';
       default: return source;
     }
   };
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 text-white bg-transparent">
-      <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
+    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 text-gray-100 bg-transparent">
+      <div className="max-w-5xl mx-auto space-y-6">
         
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-black/40 backdrop-blur-2xl p-6 rounded-3xl border border-white/10 shadow-2xl">
           <div>
-            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight drop-shadow-md mb-1">Plugin Manager</h2>
-            <p className="text-[11px] font-bold text-indigo-400/80 uppercase tracking-widest mt-1">Search and install plugins from Modrinth, Spigot, and Paper Hangar.</p>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+              <Puzzle className="w-7 h-7 text-sky-400" /> Plugin Marketplace
+            </h2>
+            <p className="text-xs font-semibold text-gray-400 mt-1">
+              Search and auto-install plugins directly from Modrinth, SpigotMC, and Paper Hangar.
+            </p>
           </div>
         </div>
 
-        <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_40px_-15px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
-          <div className="p-4 border-b border-white/5 space-y-4">
-            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
+        {/* Search & Filter Container */}
+        <div className="bg-black/50 backdrop-blur-2xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+          <div className="p-4 md:p-6 border-b border-white/10 space-y-4">
+            
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search for plugins..."
+                  placeholder="Search plugins by name or keyword..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="w-full bg-white/[0.02] border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-2.5 pl-11 pr-4 text-xs md:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/30 transition-all"
                 />
               </div>
               <button 
                 type="submit"
-                className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0"
+                className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white rounded-2xl text-xs md:text-sm font-bold transition-all shadow-lg shadow-sky-500/20 whitespace-nowrap shrink-0"
               >
-                Search
+                Search Repository
               </button>
             </form>
             
+            {/* Filter Chips */}
             <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
-              {['all', 'modrinth', 'spigot', 'hangar'].map(src => (
-                <button
-                  key={src}
-                  type="button"
-                  onClick={() => setActiveSource(src as any)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${activeSource === src ? 'bg-indigo-500 text-white' : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'}`}
-                >
-                  {src === 'all' ? <Puzzle className="w-3.5 h-3.5" /> : getSourceIcon(src)}
-                  {src === 'all' ? 'All Sources' : getSourceName(src)}
-                </button>
-              ))}
+              {(['all', 'modrinth', 'spigot', 'hangar'] as const).map(src => {
+                const isActive = activeSource === src;
+                return (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => setActiveSource(src)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${
+                      isActive 
+                        ? 'bg-sky-500/20 border-sky-500/50 text-sky-400 shadow-md shadow-sky-500/10' 
+                        : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    {src === 'all' ? <Puzzle className="w-3.5 h-3.5" /> : getSourceIcon(src)}
+                    {src === 'all' ? 'All Sources' : getSourceName(src)}
+                  </button>
+                );
+              })}
             </div>
           </div>
           
+          {/* Plugin Items List */}
           <div className="divide-y divide-white/5">
             {loading ? (
-              <div className="p-8 text-center text-zinc-500 flex flex-col items-center">
-                <RefreshCw className="w-6 h-6 animate-spin mb-3 text-indigo-500/50" />
-                Searching repositories...
+              <div className="p-12 text-center text-gray-400 flex flex-col items-center justify-center space-y-3">
+                <RefreshCw className="w-8 h-8 animate-spin text-sky-400" />
+                <span className="text-xs font-mono tracking-wider uppercase text-gray-500">Searching Repositories...</span>
               </div>
             ) : plugins.length === 0 ? (
-              <div className="p-8 text-center text-zinc-500 flex flex-col items-center">
-                <AlertCircle className="w-8 h-8 mb-3 text-zinc-600" />
-                No plugins found.
+              <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center">
+                <AlertCircle className="w-10 h-10 mb-3 text-gray-600" />
+                <p className="text-sm font-medium">No plugins found matching your search.</p>
               </div>
             ) : (
               plugins.map((plugin) => (
-                <div key={`${plugin.source}-${plugin.id}`} className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-white/[0.01] transition-colors">
+                <div 
+                  key={`${plugin.source}-${plugin.id}`} 
+                  className="p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors"
+                >
                   <div className="flex items-start gap-4 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0 overflow-hidden border border-white/5">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center shrink-0 overflow-hidden border border-white/10 shadow-inner">
                       {plugin.icon ? (
                          <img src={plugin.icon} alt={plugin.name} className="w-full h-full object-cover" />
                       ) : (
-                         <Puzzle className="w-5 h-5 text-zinc-500" />
+                         <Puzzle className="w-6 h-6 text-gray-500" />
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                         <h4 className="font-medium text-zinc-200 truncate">{plugin.name}</h4>
-                         <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-white/5 text-zinc-400 flex items-center gap-1">
-                            {getSourceIcon(plugin.source)} {plugin.source}
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                         <h4 className="font-bold text-gray-100 text-sm md:text-base truncate">{plugin.name}</h4>
+                         <span className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border uppercase tracking-wider flex items-center gap-1.5 ${getSourceBadgeStyle(plugin.source)}`}>
+                            {getSourceIcon(plugin.source)} {getSourceName(plugin.source)}
                          </span>
                       </div>
-                      <p className="text-xs text-zinc-500 line-clamp-2 mt-1">{plugin.tag}</p>
-                      <div className="flex items-center gap-4 mt-2 text-[11px] text-zinc-500">
+                      <p className="text-xs text-gray-400 line-clamp-2 mt-1 leading-relaxed">{plugin.tag}</p>
+                      
+                      <div className="flex items-center gap-4 mt-2.5 text-[11px] text-gray-400 font-mono">
                         {plugin.downloads > 0 && (
-                          <span className="flex items-center gap-1" title="Downloads">
-                            <Download className="w-3.5 h-3.5 text-zinc-600" />
+                          <span className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-md border border-white/5" title="Downloads">
+                            <Download className="w-3 h-3 text-sky-400" />
                             {plugin.downloads.toLocaleString()}
                           </span>
                         )}
                         {plugin.rating > 0 && (
-                          <span title="Rating">⭐ {plugin.rating.toFixed(1)}/5</span>
+                          <span className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-md border border-white/5 text-amber-400" title="Rating">
+                            <Star className="w-3 h-3 fill-amber-400" />
+                            {plugin.rating.toFixed(1)} / 5
+                          </span>
                         )}
                       </div>
                     </div>
@@ -246,12 +277,12 @@ export default function PluginManager({ serverId }: { serverId: string }) {
                   <button
                     onClick={() => handleInstall(plugin)}
                     disabled={isInstalling !== null}
-                    className="w-full md:w-auto px-4 py-2 bg-white/5 hover:bg-indigo-500/10 border border-white/10 hover:border-indigo-500/30 text-zinc-300 hover:text-indigo-400 rounded-lg text-sm font-medium transition-all flex items-center justify-center shrink-0 disabled:opacity-50"
+                    className="w-full md:w-auto px-5 py-2.5 bg-white/5 hover:bg-sky-500/20 border border-white/10 hover:border-sky-500/40 text-gray-200 hover:text-sky-300 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center shrink-0 disabled:opacity-50"
                   >
                     {isInstalling === plugin.id ? (
-                      <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Installing...</>
+                      <><RefreshCw className="w-4 h-4 mr-2 animate-spin text-sky-400" /> Installing...</>
                     ) : (
-                      <><Download className="w-4 h-4 mr-2" /> Install</>
+                      <><Download className="w-4 h-4 mr-2 text-sky-400" /> Install Plugin</>
                     )}
                   </button>
                 </div>
@@ -264,4 +295,5 @@ export default function PluginManager({ serverId }: { serverId: string }) {
       {isInstalling !== null && <LoadingOverlay message="Installing plugin..." />}
     </div>
   );
-}
+              }
+                      
