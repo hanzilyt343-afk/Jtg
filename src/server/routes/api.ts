@@ -7,22 +7,26 @@ import authRoutes from "./auth.js";
 import serverRoutes from "./servers.js";
 import systemRoutes from "./system.js";
 import apiKeyRoutes from "./api-keys.js";
+import billingRoutes from "./billing.js";
 
 router.use("/auth", authRoutes);
 router.use("/servers", serverRoutes);
 router.use("/system", systemRoutes);
 router.use("/admin/api-keys", apiKeyRoutes);
+router.use("/billing", billingRoutes);
 
 router.get("/settings", async (req, res) => {
   const settings = await readJSON("settings.json") || {};
   res.json({ 
-    panelName: settings.panelName || "JTG Panel",
+    panelName: settings.panelName || "Mineactyl Panel",
     panelLogo: settings.panelLogo || "",
     panelBackgroundImage: settings.panelBackgroundImage || "",
     panelBackgroundBlur: settings.panelBackgroundBlur !== undefined ? settings.panelBackgroundBlur : 10,
     enablePlayit: settings.enablePlayit !== undefined ? settings.enablePlayit : false,
     enableTutorial: settings.enableTutorial !== undefined ? settings.enableTutorial : true,
-    enableLoginAnimation: settings.enableLoginAnimation !== undefined ? settings.enableLoginAnimation : true
+    enableLoginAnimation: settings.enableLoginAnimation !== undefined ? settings.enableLoginAnimation : true,
+    panelDomain: settings.panelDomain || "",
+    enableSignup: settings.enableSignup !== undefined ? settings.enableSignup : true,
   });
 });
 

@@ -101,7 +101,7 @@ export const createServerContainer = async (serverData: any) => {
   // 3. Create Container Configuration
   const containerConfig: any = {
     Image: dockerImage,
-    name: `jtg-server-${serverData.id}`,
+    name: `mineactyl-server-${serverData.id}`,
     Tty: true,
     OpenStdin: true,
     StdinOnce: false,

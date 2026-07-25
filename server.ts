@@ -27,6 +27,8 @@ fs.ensureDirSync(path.join(DATA_DIR, "temp"));
 if (!fs.existsSync(path.join(DATA_DIR, "users.json"))) fs.writeFileSync(path.join(DATA_DIR, "users.json"), "[]");
 if (!fs.existsSync(path.join(DATA_DIR, "servers.json"))) fs.writeFileSync(path.join(DATA_DIR, "servers.json"), "[]");
 if (!fs.existsSync(path.join(DATA_DIR, "settings.json"))) fs.writeFileSync(path.join(DATA_DIR, "settings.json"), "{}");
+if (!fs.existsSync(path.join(DATA_DIR, "plans.json"))) fs.writeFileSync(path.join(DATA_DIR, "plans.json"), "[]");
+if (!fs.existsSync(path.join(DATA_DIR, "subscriptions.json"))) fs.writeFileSync(path.join(DATA_DIR, "subscriptions.json"), "[]");
 
 import { attachContainerSocket, getContainerLogs } from "./src/server/services/docker.js";
 
@@ -34,7 +36,7 @@ io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) return next(new Error("Authentication error"));
   try {
-    const verified = jwt.verify(token, process.env.JWT_SECRET || "jtg-panel-super-secret");
+    const verified = jwt.verify(token, process.env.JWT_SECRET || "mineactyl-panel-super-secret");
     (socket as any).user = verified;
     next();
   } catch (err) {
@@ -96,7 +98,7 @@ async function startServer() {
   }
 
   httpServer.listen(PORT, () => {
-    console.log(`MINE Panel running on port ${PORT}`);
+    console.log(`Mineactyl Panel running on port ${PORT}`);
   });
 }
 

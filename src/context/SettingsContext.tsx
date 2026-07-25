@@ -4,13 +4,15 @@ import axios from "axios";
 export const SettingsContext = createContext<any>(null);
 
 export const SettingsProvider = ({ children }: { children: React.ReactNode }) => {
-  const [panelName, setPanelName] = useState<string>("JTG Panel");
+  const [panelName, setPanelName] = useState<string>("Mineactyl Panel");
   const [panelLogo, setPanelLogo] = useState<string>("");
   const [panelBackgroundImage, setPanelBackgroundImage] = useState<string>("");
   const [panelBackgroundBlur, setPanelBackgroundBlur] = useState<number>(10);
   const [enablePlayit, setEnablePlayit] = useState<boolean>(false);
   const [enableTutorial, setEnableTutorial] = useState<boolean>(true);
   const [enableLoginAnimation, setEnableLoginAnimation] = useState<boolean>(true);
+  const [panelDomain, setPanelDomain] = useState<string>("");
+  const [enableSignup, setEnableSignup] = useState<boolean>(true);
 
   const fetchSettings = async () => {
     try {
@@ -22,6 +24,8 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
       if (res.data.enablePlayit !== undefined) setEnablePlayit(res.data.enablePlayit);
       if (res.data.enableTutorial !== undefined) setEnableTutorial(res.data.enableTutorial);
       if (res.data.enableLoginAnimation !== undefined) setEnableLoginAnimation(res.data.enableLoginAnimation);
+      if (res.data.panelDomain !== undefined) setPanelDomain(res.data.panelDomain);
+      if (res.data.enableSignup !== undefined) setEnableSignup(res.data.enableSignup);
     } catch (e) {}
   };
 
@@ -38,6 +42,8 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
       enablePlayit, setEnablePlayit, 
       enableTutorial, setEnableTutorial,
       enableLoginAnimation, setEnableLoginAnimation,
+      panelDomain, setPanelDomain,
+      enableSignup, setEnableSignup,
       fetchSettings 
     }}>
       {children}

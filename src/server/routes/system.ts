@@ -104,15 +104,17 @@ router.put("/users/:id/password", async (req, res) => {
 router.put("/settings", async (req, res) => {
   const user = (req as any).user;
   if(user.role !== "admin" && user.role !== "owner") return res.status(403).json({ error: "Forbidden"});
-  const { panelName, panelLogo, panelBackgroundImage, panelBackgroundBlur, enablePlayit, enableTutorial, enableLoginAnimation } = req.body;
+  const { panelName, panelLogo, panelBackgroundImage, panelBackgroundBlur, enablePlayit, enableTutorial, enableLoginAnimation, panelDomain, enableSignup } = req.body;
   const settings = await readJSON("settings.json") || {};
-  if (panelName !== undefined) settings.panelName = panelName || "JTG Panel";
+  if (panelName !== undefined) settings.panelName = panelName || "Mineactyl Panel";
   if (panelLogo !== undefined) settings.panelLogo = panelLogo;
   if (panelBackgroundImage !== undefined) settings.panelBackgroundImage = panelBackgroundImage;
   if (panelBackgroundBlur !== undefined) settings.panelBackgroundBlur = panelBackgroundBlur;
   if (enablePlayit !== undefined) settings.enablePlayit = enablePlayit;
   if (enableTutorial !== undefined) settings.enableTutorial = enableTutorial;
   if (enableLoginAnimation !== undefined) settings.enableLoginAnimation = enableLoginAnimation;
+  if (panelDomain !== undefined) settings.panelDomain = panelDomain;
+  if (enableSignup !== undefined) settings.enableSignup = enableSignup;
   await writeJSON("settings.json", settings);
   res.json({ success: true });
 });

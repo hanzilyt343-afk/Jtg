@@ -9,7 +9,7 @@ import { LoadingOverlay } from "../components/LoadingOverlay";
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const { panelName, panelLogo, panelBackgroundImage, panelBackgroundBlur, enablePlayit, enableTutorial, enableLoginAnimation, fetchSettings } = useSettings();
+  const { panelName, panelLogo, panelBackgroundImage, panelBackgroundBlur, enablePlayit, enableTutorial, enableLoginAnimation, panelDomain, enableSignup, fetchSettings } = useSettings();
   const [users, setUsers] = useState<any[]>([]);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -291,6 +291,21 @@ export default function SettingsPage() {
                 <button disabled={isSavingSettings} type="submit" className="bg-white text-zinc-900 hover:bg-zinc-200 font-semibold px-6 py-2.5 rounded-xl transition-all shadow-sm active:scale-[0.98] whitespace-nowrap disabled:opacity-50">
                   {isSavingSettings ? "Saving..." : "Save"}
                 </button>
+              </div>
+
+              <label className="block text-sm font-medium text-zinc-400 mb-1.5">Panel Domain / Server IP</label>
+              <p className="text-xs text-zinc-500 mb-2">The public IP or domain name where your servers are accessible (e.g. <code className="text-sky-400">play.myhost.com</code> or <code className="text-sky-400">103.x.x.x</code>). Used to generate connection addresses for players.</p>
+              <div className="flex gap-3 mb-2">
+                <input
+                  value={panelDomain || ""}
+                  onChange={e => {
+                    const val = e.target.value;
+                    axios.put("/api/system/settings", { panelDomain: val }).then(() => fetchSettings()).catch(() => {});
+                  }}
+                  type="text"
+                  placeholder="e.g. play.myhost.com or 103.x.x.x"
+                  className="flex-1 bg-white/[0.03] border border-white/10 focus:border-sky-500 focus:ring-1 focus:ring-sky-500/50 rounded-xl px-4 py-2.5 text-white transition-all shadow-inner outline-none placeholder-zinc-600 text-sm"
+                />
               </div>
             </form>
             

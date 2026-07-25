@@ -15,12 +15,14 @@ import { TutorialOverlay } from "./components/TutorialOverlay";
 
 // Lazy loading components for better performance & fast loading
 const Login = lazy(() => import("./pages/Login"));
+const Signup = lazy(() => import("./pages/Signup"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const ServerList = lazy(() => import("./pages/ServerList"));
 const CreateServer = lazy(() => import("./pages/CreateServer"));
 const ServerView = lazy(() => import("./pages/ServerView"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const ApiKeysPage = lazy(() => import("./pages/ApiKeysPage"));
+const PlansPage = lazy(() => import("./pages/PlansPage"));
 
 // Reusable Loading Spinner Component
 const PageLoader = () => (
@@ -52,14 +54,16 @@ const AnimatedRoutes = () => {
       <div key={location.pathname.split("/")[1] || "root"} className="h-full w-full flex flex-col">
         <Suspense fallback={<PageLoader />}>
           <Routes location={location}>
-            {/* Public Route */}
+            {/* Public Routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
 
             {/* Protected Routes */}
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/servers" element={<ProtectedRoute><ServerList /></ProtectedRoute>} />
             <Route path="/servers/create" element={<ProtectedRoute><CreateServer /></ProtectedRoute>} />
             <Route path="/servers/:id/*" element={<ProtectedRoute><ServerView /></ProtectedRoute>} />
+            <Route path="/plans" element={<ProtectedRoute><PlansPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/api-keys" element={<ProtectedRoute><ApiKeysPage /></ProtectedRoute>} />
 

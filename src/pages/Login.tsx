@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { LoadingOverlay } from "../components/LoadingOverlay";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { User, Lock, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck } from "lucide-react";
 import gsap from "gsap";
 import axios from "axios";
@@ -213,6 +213,11 @@ export default function Login() {
             <span>{isLoading ? "Authenticating..." : "Sign In to Console"}</span>
             {!isLoading && <ArrowRight size={16} />}
           </button>
+
+          <p className="text-center text-xs text-gray-500 pt-1">
+            Don't have an account?{" "}
+            <Link to="/signup" className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors">Create Account</Link>
+          </p>
         </form>
       </div>
       

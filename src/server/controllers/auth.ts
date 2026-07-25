@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { readJSON } from "../services/db.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "jtg-panel-super-secret";
+const JWT_SECRET = process.env.JWT_SECRET || "mineactyl-panel-super-secret";
 
 export const login = async (req: Request, res: Response) => {
   const { username, password } = req.body;
@@ -64,6 +64,53 @@ export const login = async (req: Request, res: Response) => {
   const token = jwt.sign({ id: user.id, username: user.username, role, passwordVersion: user.passwordVersion || 0 }, JWT_SECRET, { expiresIn: "7d" });
 
   res.json({ token, user: { id: user.id, username: user.username, role } });
+};
+
+export const register = async (req: Request, res: Response) => {
+  const { username, password, email } = req.body;
+
+  if (!username || !password) {
+    res.status(400).json({ error: "Username and password required" });
+    return;
+  }
+  if (username.length < 3 || username.length > 24) {
+    res.status(400).json({ error: "Username must be 3–24 characters" });
+    return;
+  }
+  if (password.length < 6) {
+    res.status(400).json({ error: "Password must be at least 6 characters" });
+    return;
+  }
+
+  const { writeJSON } = await import("../services/db.js");
+  const users = await readJSON("users.json") || [];
+
+  if (users.find((u: any) => u.username.toLowerCase() === username.toLowerCase())) {
+    res.status(409).json({ error: "Username already taken" });
+    return;
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newUser = {
+    id: "user-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6),
+    username,
+    email: email || "",
+    password: hashedPassword,
+    role: "user",
+    passwordVersion: 0,
+    createdAt: new Date().toISOString(),
+  };
+
+  users.push(newUser);
+  await writeJSON("users.json", users);
+
+  const token = jwt.sign(
+    { id: newUser.id, username: newUser.username, role: newUser.role, passwordVersion: 0 },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  res.status(201).json({ token, user: { id: newUser.id, username: newUser.username, role: newUser.role } });
 };
 
 export const logout = (req: Request, res: Response) => {
