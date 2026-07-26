@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { LoadingOverlay } from "../components/LoadingOverlay";
 import { useParams, Link, Routes, Route, useLocation } from "react-router-dom";
 import axios from "axios";
-import { Terminal, Folder, Play, Square, RefreshCw, ArrowLeft, Sliders, Archive, AlertTriangle, Copy, Check, Menu, X, Users, LogOut } from "lucide-react";
+import { Terminal, Folder, Play, Square, RefreshCw, ArrowLeft, Sliders, Archive, AlertTriangle, Copy, Check, Menu, X, Users, LogOut, Wifi, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import ServerConsole from "../components/ServerConsole";
@@ -22,7 +22,7 @@ import { useSettings } from "../context/SettingsContext";
 
 export default function ServerView() {
   const { id } = useParams();
-  const { enablePlayit } = useSettings();
+  const { enablePlayit, panelDomain } = useSettings();
   const [server, setServer] = useState<any>(null);
   const [totalSystemRam, setTotalSystemRam] = useState<number>(0);
   const [showRamWarning, setShowRamWarning] = useState(false);
@@ -30,12 +30,18 @@ export default function ServerView() {
   const [isProcessing, setIsProcessing] = useState(false);
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
+  const getJoinAddress = (srv: any) => {
+    if (!srv) return null;
+    if (srv.ipAlias) return srv.ipAlias;
+    if (panelDomain) return `${panelDomain}:${srv.port}`;
+    return null;
+  };
 
   const handleCopyIp = () => {
     if (!server) return;
-    const textToCopy = server.ipAlias ? `${server.ipAlias}:${server.port}` : `${window.location.hostname}:${server.port}`;
-    navigator.clipboard.writeText(textToCopy);
+    const addr = getJoinAddress(server) || `${window.location.hostname}:${server.port}`;
+    navigator.clipboard.writeText(addr);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -165,9 +171,10 @@ export default function ServerView() {
                 </span>
                 <span className="text-xs font-medium text-zinc-300 capitalize">{server.status}</span>
                 <span className="text-xs text-zinc-600">•</span>
-                <button onClick={handleCopyIp} className="flex items-center space-x-1.5 px-1.5 py-0.5 rounded-md hover:bg-white/10 transition-colors group cursor-pointer truncate" title="Copy Connection Info">
-                  <span className="text-[11px] font-mono text-zinc-400 group-hover:text-zinc-300 transition-colors truncate">
-                    {server.ipAlias ? `${server.ipAlias}:${server.port}` : server.port}
+                <button onClick={handleCopyIp} className="flex items-center space-x-1.5 px-1.5 py-0.5 rounded-md hover:bg-white/10 transition-colors group cursor-pointer truncate" title="Copy Join Address">
+                  <Wifi size={11} className={getJoinAddress(server) ? "text-emerald-400 shrink-0" : "text-amber-400 shrink-0"} />
+                  <span className={`text-[11px] font-mono group-hover:text-zinc-300 transition-colors truncate ${getJoinAddress(server) ? 'text-emerald-300 font-bold' : 'text-zinc-400'}`}>
+                    {getJoinAddress(server) || `Port ${server.port}`}
                   </span>
                   {copied ? <Check size={12} className="text-emerald-400 shrink-0" /> : <Copy size={12} className="text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0" />}
                 </button>
@@ -256,12 +263,33 @@ export default function ServerView() {
           </div>
           
           <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 sm:pb-0 justify-between w-full md:w-auto">
-             <button onClick={handleCopyIp} className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 transition-colors group cursor-pointer shrink-0" title="Copy Connection Info">
-                <span className="text-xs font-mono text-zinc-400 group-hover:text-zinc-300 transition-colors truncate max-w-[150px] lg:max-w-[200px]">
-                  {server.ipAlias ? `${server.ipAlias}:${server.port}` : server.port}
-                </span>
-                {copied ? <Check size={14} className="text-emerald-400 shrink-0" /> : <Copy size={14} className="text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0" />}
-             </button>
+             {/* Join Address — always visible in header */}
+             {getJoinAddress(server) ? (
+               <button
+                 onClick={handleCopyIp}
+                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all group cursor-pointer shrink-0"
+                 title="Copy join address"
+               >
+                 <Wifi size={13} className="text-emerald-400 shrink-0" />
+                 <span className="text-xs font-mono font-bold text-emerald-300 group-hover:text-emerald-200 transition-colors truncate max-w-[160px] lg:max-w-[240px]">
+                   {getJoinAddress(server)}
+                 </span>
+                 {copied
+                   ? <Check size={13} className="text-emerald-400 shrink-0" />
+                   : <Copy size={13} className="text-emerald-500/60 group-hover:text-emerald-300 transition-colors shrink-0" />}
+               </button>
+             ) : (
+               <button
+                 onClick={handleCopyIp}
+                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 transition-all group cursor-pointer shrink-0"
+                 title="Copy port — set Panel Domain in Settings for a full address"
+               >
+                 <Wifi size={13} className="text-amber-400 shrink-0" />
+                 <span className="text-xs font-mono text-amber-300/80 truncate max-w-[160px]">
+                   Port {server.port} <span className="text-amber-400/50">— set domain in Settings</span>
+                 </span>
+               </button>
+             )}
              <div className="hidden md:block w-px h-5 bg-white/10" />
              <div className="hidden md:flex items-center space-x-2 shrink-0">
                 <span className="flex h-2 w-2 relative shrink-0">

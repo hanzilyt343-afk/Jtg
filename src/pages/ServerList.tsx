@@ -1,16 +1,35 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import { Server, Plus, Search, Filter, ArrowUpRight, Cpu, HardDrive, Layers } from "lucide-react";
+import { Server, Plus, Search, ArrowUpRight, Cpu, HardDrive, Layers, Copy, Check, Wifi } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
+import { useSettings } from "../context/SettingsContext";
 import ServerLiveStats from "../components/ServerLiveStats";
 
 export default function ServerList() {
   const [servers, setServers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "online" | "offline">("all");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { user } = useAuth();
+  const { panelDomain } = useSettings();
+
+  const getJoinAddress = (server: any) => {
+    if (server.ipAlias) return server.ipAlias;
+    if (panelDomain) return `${panelDomain}:${server.port}`;
+    return null; // no domain configured yet
+  };
+
+  const copyAddress = (e: React.MouseEvent, server: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const addr = getJoinAddress(server);
+    if (!addr) return;
+    navigator.clipboard.writeText(addr);
+    setCopiedId(server.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const fetchServers = async () => {
     try {
@@ -125,6 +144,31 @@ export default function ServerList() {
                 }`} 
               />
               
+              {/* ── JOIN ADDRESS BANNER (outside Link so button works) ── */}
+              {getJoinAddress(server) ? (
+                <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 z-10 relative">
+                  <Wifi className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[9px] font-bold text-emerald-400/70 uppercase tracking-widest mb-0.5">Join Address</p>
+                    <p className="font-mono font-bold text-emerald-300 text-sm truncate">{getJoinAddress(server)}</p>
+                  </div>
+                  <button
+                    onClick={(e) => copyAddress(e, server)}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/20 text-emerald-400 text-xs font-bold transition-all"
+                  >
+                    {copiedId === server.id ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+                  </button>
+                </div>
+              ) : (
+                <div className="mb-4 flex items-center gap-3 px-4 py-2.5 rounded-2xl border border-amber-500/20 bg-amber-500/5 z-10 relative">
+                  <Wifi className="w-4 h-4 text-amber-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[9px] font-bold text-amber-400/70 uppercase tracking-widest mb-0.5">Join Address</p>
+                    <p className="text-xs text-amber-300/70">Port <span className="font-mono font-bold text-amber-300">{server.port}</span> — Set Panel Domain in Settings for a full address</p>
+                  </div>
+                </div>
+              )}
+
               <Link to={`/servers/${server.id}`} className="block flex-1 z-10 relative">
                 {/* Header row in Card */}
                 <div className="flex justify-between items-start mb-5">
