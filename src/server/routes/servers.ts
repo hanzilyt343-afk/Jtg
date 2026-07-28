@@ -51,7 +51,7 @@ router.get("/:id/playit", async (req, res) => {
   const serverName = server ? server.name.replace(/[^a-zA-Z0-9_-]/g, "_") : id;
   const pm2Name = `playit_${serverName}`;
   
-  const { exec } = await import("child_process"); console.log("running exec..."); 
+  const { exec } = await import("child_process");
   
   exec("npx pm2 jlist", (err, stdout) => {
     let status = "stopped";
@@ -67,17 +67,61 @@ router.get("/:id/playit", async (req, res) => {
     } catch (e) {}
 
     if (status === "running") {
-      exec(`npx pm2 logs ${pm2Name} --nostream --lines 100`, (err, logStdout, logStderr) => {
+      exec(`npx pm2 logs ${pm2Name} --nostream --lines 200`, async (err, logStdout, logStderr) => {
         const logs = (logStdout || "").replace(/\x1b\[[0-9;]*[a-zA-Z]|\x1b./g, "");
         const claimLinkMatches = logs.match(/https:\/\/playit\.gg\/claim\/[a-zA-Z0-9]+/g);
+        
+        // Try to extract the tunnel address (assigned IP:port by playit)
+        let tunnelAddress: string | null = null;
+        
+        // Pattern 1: "ip:port" style (e.g. "147.185.221.11:25565")
+        const ipPortMatches = logs.match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{2,5})\b/g);
+        // Pattern 2: playit subdomain addresses
+        const domainMatches = logs.match(/\b([a-z0-9\-]+\.ply\.gg:\d{2,5})\b/g) ||
+                              logs.match(/\b([a-z0-9\-]+\.playit\.gg:\d{2,5})\b/g) ||
+                              logs.match(/\b([a-z0-9\-]+\.joinmc\.io:\d{2,5})\b/g);
+        // Pattern 3: "tunnel_address" or "alloc" log lines
+        const allocMatch = logs.match(/alloc\s+(?:tcp|udp)\s+([^\s]+)/i) ||
+                           logs.match(/tunnel[_\s]address[:\s]+["]?([^\s"]+)/i) ||
+                           logs.match(/address[:\s]+["]([^"]+)"/i);
+
+        if (domainMatches) {
+          tunnelAddress = domainMatches[domainMatches.length - 1];
+        } else if (allocMatch) {
+          tunnelAddress = allocMatch[1];
+        } else if (ipPortMatches) {
+          // filter out private IPs
+          const publicIp = ipPortMatches.find(ip => {
+            const [host] = ip.split(":");
+            return !host.startsWith("127.") && !host.startsWith("10.") && !host.startsWith("172.") && !host.startsWith("192.168.");
+          });
+          if (publicIp) tunnelAddress = publicIp;
+        }
+
+        // Auto-persist the tunnel address to the server's ipAlias when detected
+        if (tunnelAddress && server && server.ipAlias !== tunnelAddress) {
+          try {
+            const { readJSON: rj, writeJSON: wj } = await import("../services/db.js");
+            const freshServers = await rj("servers.json") || [];
+            const idx = freshServers.findIndex((s: any) => s.id === id);
+            if (idx !== -1) {
+              freshServers[idx].ipAlias = tunnelAddress;
+              await wj("servers.json", freshServers);
+            }
+          } catch (e) {
+            console.error("Failed to auto-persist tunnel address:", e);
+          }
+        }
+
         res.json({
           status,
           claimLink: claimLinkMatches ? claimLinkMatches[claimLinkMatches.length - 1] : null,
-          logs: logs.split('\n').slice(-50).join('\n')
+          tunnelAddress,
+          logs: logs.split('\n').slice(-60).join('\n')
         });
       });
     } else {
-      res.json({ status: "stopped", claimLink: null, logs: "" });
+      res.json({ status: "stopped", claimLink: null, tunnelAddress: null, logs: "" });
     }
   });
 });
@@ -274,4 +318,187 @@ router.delete("/:id/sftp", async (req, res) => {
 
 router.post("/:id/plugins/install", installPlugin);
 router.post("/:id/mods/install", installMod);
+
+// ─── VPS Management ───────────────────────────────────────────────────────────
+
+router.get("/:id/vps/tmate", async (req, res) => {
+  try {
+    const user = (req as any).user;
+
+    const { id } = req.params;
+    const { readJSON } = await import("../services/db.js");
+    const { docker, isSandbox } = await import("../services/docker.js");
+    const servers = await readJSON("servers.json") || [];
+    const server = servers.find((s: any) => s.id === id);
+
+    if (!server) return res.status(404).json({ error: "Server not found" });
+
+    // Ownership check: admin/owner role can manage any server; regular users only their own
+    if (user.role !== "admin" && user.role !== "owner" && server.owner !== user.id) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    if ((server.type || "").toUpperCase() !== "VPS") return res.status(400).json({ error: "Not a VPS server" });
+    if (!server.containerId) return res.status(400).json({ error: "Container not created" });
+
+    if (isSandbox) {
+      return res.json({ ssh: "ssh abcdef@nyc1.tmate.io", web: "https://tmate.io/t/abcdef", note: "Sandbox mode" });
+    }
+
+    const container = docker.getContainer(server.containerId);
+    const info = await container.inspect();
+    if (!info.State.Running) return res.status(400).json({ error: "VPS must be running to generate a tmate session" });
+
+    // Install tmate if missing and start a new session
+    const installCmd = [
+      "bash", "-c",
+      `export DEBIAN_FRONTEND=noninteractive; \
+       which tmate 2>/dev/null || (apt-get update -qq 2>/dev/null && apt-get install -y tmate -qq 2>/dev/null); \
+       pkill tmate 2>/dev/null; sleep 0.5; \
+       tmate -S /tmp/tmate.sock new-session -d 2>/dev/null; \
+       tmate -S /tmp/tmate.sock wait tmate-ready 2>/dev/null; \
+       echo "SSH_LINE:$(tmate -S /tmp/tmate.sock display-message -p '#{tmate_ssh}' 2>/dev/null)"; \
+       echo "WEB_LINE:$(tmate -S /tmp/tmate.sock display-message -p '#{tmate_web}' 2>/dev/null)"`
+    ];
+
+    const exec = await container.exec({ Cmd: installCmd, AttachStdout: true, AttachStderr: true });
+    const stream = await exec.start({ hijack: true, stdin: false });
+
+    let output = "";
+    await new Promise<void>((resolve) => {
+      stream.on("data", (chunk: Buffer) => { output += chunk.toString(); });
+      stream.on("end", resolve);
+      setTimeout(resolve, 30000); // 30s timeout
+    });
+
+    const sshMatch = output.match(/SSH_LINE:(.+)/);
+    const webMatch = output.match(/WEB_LINE:(.+)/);
+
+    res.json({
+      ssh: sshMatch ? sshMatch[1].trim() : null,
+      web: webMatch ? webMatch[1].trim() : null,
+    });
+  } catch (err: any) {
+    console.error("VPS tmate error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/:id/vps/reinstall", async (req, res) => {
+  try {
+    const user = (req as any).user;
+
+    const { id } = req.params;
+    const { readJSON, writeJSON } = await import("../services/db.js");
+    const { docker, isSandbox, createServerContainer, deleteContainer, startContainer } = await import("../services/docker.js");
+    const servers = await readJSON("servers.json") || [];
+    const serverIndex = servers.findIndex((s: any) => s.id === id);
+
+    if (serverIndex === -1) return res.status(404).json({ error: "Server not found" });
+    const server = servers[serverIndex];
+
+    // Reinstall is destructive — only admin/owner role may perform it
+    if (user.role !== "admin" && user.role !== "owner") {
+      return res.status(403).json({ error: "Only admins can reinstall a VPS" });
+    }
+
+    if ((server.type || "").toUpperCase() !== "VPS") return res.status(400).json({ error: "Not a VPS server" });
+
+    // Stop and delete old container
+    if (server.containerId) {
+      await deleteContainer(server.containerId).catch(e => console.error("Delete container error:", e));
+    }
+
+    // Wipe server data directory (preserving backups)
+    const fsExtra = (await import("fs-extra")).default;
+    const serverDir = path.join(process.cwd(), ".data", "servers", id);
+    await fsExtra.emptyDir(serverDir);
+
+    // Remove init marker so packages get reinstalled
+    // (the container is fresh, so /etc/.mineactyl_init won't exist)
+
+    // Recreate container
+    const newContainerId = await createServerContainer(server);
+    servers[serverIndex].containerId = newContainerId;
+    servers[serverIndex].status = "offline";
+    await writeJSON("servers.json", servers);
+
+    res.json({ success: true, message: "VPS reinstalled. Start the server to boot it up." });
+  } catch (err: any) {
+    console.error("VPS reinstall error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/:id/vps/ssh-keys", async (req, res) => {
+  try {
+    const user = (req as any).user;
+
+    const { id } = req.params;
+    const { readJSON } = await import("../services/db.js");
+    const { docker, isSandbox } = await import("../services/docker.js");
+    const servers = await readJSON("servers.json") || [];
+    const server = servers.find((s: any) => s.id === id);
+
+    if (!server) return res.status(404).json({ error: "Server not found" });
+
+    // Ownership check: admin/owner can manage any server; regular users only their own
+    if (user.role !== "admin" && user.role !== "owner" && server.owner !== user.id) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    if ((server.type || "").toUpperCase() !== "VPS") return res.status(400).json({ error: "Not a VPS server" });
+    if (!server.containerId) return res.status(400).json({ error: "Container not created" });
+
+    if (isSandbox) {
+      return res.json({ publicKey: "ssh-rsa AAAAB3Nza...SANDBOX_MODE root@vps", privateKey: "-----BEGIN RSA PRIVATE KEY-----\nSANDBOX\n-----END RSA PRIVATE KEY-----" });
+    }
+
+    const container = docker.getContainer(server.containerId);
+    const info = await container.inspect();
+    if (!info.State.Running) return res.status(400).json({ error: "VPS must be running" });
+
+    // Generate the key pair in /tmp (NOT the bind-mounted /root volume).
+    // Only the public key is written to /root/.ssh/authorized_keys (public keys are not sensitive).
+    // The private key is streamed once via stdout and immediately deleted — it is never persisted
+    // to the server file area accessible via File Manager or SFTP.
+    const keyCmd = [
+      "bash", "-c",
+      `TMPKEY=/tmp/vps_key_$$ ; \
+       ssh-keygen -t rsa -b 2048 -f "$TMPKEY" -N "" -q 2>/dev/null; \
+       mkdir -p /root/.ssh && chmod 700 /root/.ssh; \
+       cat "$TMPKEY.pub" >> /root/.ssh/authorized_keys 2>/dev/null; \
+       sort -u /root/.ssh/authorized_keys -o /root/.ssh/authorized_keys 2>/dev/null; \
+       chmod 600 /root/.ssh/authorized_keys 2>/dev/null; \
+       echo "PUBKEY:$(cat "$TMPKEY.pub" 2>/dev/null)"; \
+       echo "PRIVKEY_START"; \
+       cat "$TMPKEY" 2>/dev/null; \
+       echo "PRIVKEY_END"; \
+       rm -f "$TMPKEY" "$TMPKEY.pub"`
+    ];
+
+    const exec = await container.exec({ Cmd: keyCmd, AttachStdout: true, AttachStderr: true });
+    const stream = await exec.start({ hijack: true, stdin: false });
+    let output = "";
+    await new Promise<void>((resolve) => {
+      stream.on("data", (chunk: Buffer) => { output += chunk.toString(); });
+      stream.on("end", resolve);
+      setTimeout(resolve, 15000);
+    });
+
+    const pubMatch = output.match(/PUBKEY:(.+)/);
+    const privStart = output.indexOf("PRIVKEY_START\n");
+    const privEnd = output.indexOf("PRIVKEY_END");
+    const privateKey = privStart !== -1 && privEnd !== -1 ? output.substring(privStart + "PRIVKEY_START\n".length, privEnd).trim() : null;
+
+    res.json({
+      publicKey: pubMatch ? pubMatch[1].trim() : null,
+      privateKey,
+    });
+  } catch (err: any) {
+    console.error("VPS SSH key error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

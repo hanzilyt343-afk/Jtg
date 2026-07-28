@@ -15,6 +15,7 @@ import ModManager from "../components/ModManager";
 import SubUsersManager from "../components/SubUsersManager";
 import ServerSFTP from "../components/ServerSFTP";
 import PlayitTunnel from "./PlayitTunnel";
+import VpsManagement from "./VpsManagement";
 import { Puzzle, Box, Network } from "lucide-react";
 import { Settings, Globe } from "lucide-react";
 import { useSettings } from "../context/SettingsContext";
@@ -90,33 +91,41 @@ export default function ServerView() {
     </div>
   );
 
+  const serverType = (server?.type || "PAPER").toUpperCase();
+  const isVPS = serverType === "VPS";
+  const isProxy = ["VELOCITY", "BUNGEECORD", "WATERFALL"].includes(serverType);
+
   const tabs: any[] = [
-    { name: "Terminal", path: `/servers/${id}`, exactPath: "", icon: <Terminal size={18} /> },
+    { name: isVPS ? "Console" : "Terminal", path: `/servers/${id}`, exactPath: "", icon: <Terminal size={18} /> },
     { name: "File Manager", path: `/servers/${id}/files`, exactPath: "files", icon: <Folder size={18} /> },
-    { name: "SFTP Details", path: `/servers/${id}/sftp`, exactPath: "sftp", icon: <Network size={18} /> },
-    { name: "Sub-Users", path: `/servers/${id}/subusers`, exactPath: "subusers", icon: <Users size={18} /> },
   ];
 
-  const isProxy = ["VELOCITY", "BUNGEECORD", "WATERFALL"].includes(server?.type?.toUpperCase() || "");
-  
-  if (!isProxy) {
-    tabs.splice(1, 0, { name: "Properties", path: `/servers/${id}/properties`, exactPath: "properties", icon: <Sliders size={18} /> });
-  }
-
-  if (server?.type === "PAPER") {
-    tabs.push({ name: "Plugins", path: `/servers/${id}/plugins`, exactPath: "plugins", icon: <Puzzle size={18} /> });
-  }
-
-  if (server?.type === "FORGE" || server?.type === "FABRIC") {
-    tabs.push({ name: "Mods", path: `/servers/${id}/mods`, exactPath: "mods", icon: <Box size={18} /> });
+  if (isVPS) {
+    // VPS-specific tabs
+    tabs.push(
+      { name: "VPS Management", path: `/servers/${id}/vps`, exactPath: "vps", icon: <ExternalLink size={18} /> },
+    );
+  } else {
+    // Non-VPS tabs
+    if (!isProxy) {
+      tabs.splice(1, 0, { name: "Properties", path: `/servers/${id}/properties`, exactPath: "properties", icon: <Sliders size={18} /> });
+    }
+    if (serverType === "PAPER") {
+      tabs.push({ name: "Plugins", path: `/servers/${id}/plugins`, exactPath: "plugins", icon: <Puzzle size={18} /> });
+    }
+    if (serverType === "FORGE" || serverType === "FABRIC") {
+      tabs.push({ name: "Mods", path: `/servers/${id}/mods`, exactPath: "mods", icon: <Box size={18} /> });
+    }
   }
 
   tabs.push(
+    { name: "SFTP", path: `/servers/${id}/sftp`, exactPath: "sftp", icon: <Network size={18} /> },
+    { name: "Sub-Users", path: `/servers/${id}/subusers`, exactPath: "subusers", icon: <Users size={18} /> },
     { name: "Settings", path: `/servers/${id}/settings`, exactPath: "settings", icon: <Settings size={18} /> },
     { name: "Backup", path: `/servers/${id}/backup`, exactPath: "backup", icon: <Archive size={18} /> }
   );
 
-  if (enablePlayit) {
+  if (!isVPS && enablePlayit) {
     tabs.push(
       { name: "Playit Tunnel", path: `/servers/${id}/playit`, exactPath: "playit", icon: <Globe size={18} /> }
     );
@@ -328,6 +337,7 @@ export default function ServerView() {
              <Route path="/backup" element={<ServerBackups serverId={id!} />} />
              <Route path="/plugins" element={<PluginManager serverId={id!} />} />
              <Route path="/mods" element={<ModManager serverId={id!} />} />
+             <Route path="/vps" element={<VpsManagement serverId={id!} server={server} />} />
              {enablePlayit && <Route path="/playit" element={<PlayitTunnel serverId={id!} />} />}
            </Routes>
         </div>

@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { Globe, Play, Square, Loader2, Link as LinkIcon, RefreshCw } from "lucide-react";
+import { Globe, Play, Square, Loader2, Link as LinkIcon, RefreshCw, Wifi, Copy, Check, Save } from "lucide-react";
 import { motion } from "framer-motion";
 import axios from "axios";
 
 export default function PlayitTunnel({ serverId }: { serverId: string }) {
   const [status, setStatus] = useState<"running" | "stopped" | "checking">("checking");
   const [claimLink, setClaimLink] = useState<string | null>(null);
+  const [tunnelAddress, setTunnelAddress] = useState<string | null>(null);
   const [logs, setLogs] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [savingIp, setSavingIp] = useState(false);
+  const [savedIp, setSavedIp] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchStatus();
@@ -20,12 +24,34 @@ export default function PlayitTunnel({ serverId }: { serverId: string }) {
       const res = await axios.get(`/api/servers/${serverId}/playit`);
       setStatus(res.data.status);
       setClaimLink(res.data.claimLink || null);
+      setTunnelAddress(res.data.tunnelAddress || null);
       if (res.data.logs !== undefined) {
         setLogs(res.data.logs);
       }
     } catch (e) {
       console.error("Failed to fetch Playit status", e);
     }
+  };
+
+  const saveAsServerIp = async () => {
+    if (!tunnelAddress) return;
+    setSavingIp(true);
+    try {
+      await axios.put(`/api/servers/${serverId}/ipalias`, { ipAlias: tunnelAddress });
+      setSavedIp(true);
+      setTimeout(() => setSavedIp(false), 3000);
+    } catch (e) {
+      console.error("Failed to save IP", e);
+    } finally {
+      setSavingIp(false);
+    }
+  };
+
+  const copyAddress = () => {
+    if (!tunnelAddress) return;
+    navigator.clipboard.writeText(tunnelAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const generateTunnel = async () => {
@@ -148,22 +174,57 @@ export default function PlayitTunnel({ serverId }: { serverId: string }) {
             </div>
           </div>
           
+          {/* Assigned Tunnel Address (shown once agent is claimed & connected) */}
+          {tunnelAddress && (
+            <div className="mt-6 p-4 bg-sky-500/10 border border-sky-500/20 rounded-lg">
+              <h3 className="text-sky-400 font-semibold mb-2 flex items-center gap-2">
+                <Wifi className="w-4 h-4" /> Tunnel Address Assigned
+              </h3>
+              <p className="text-xs text-sky-300/70 mb-3">This is the public IP:Port players use to join your server.</p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <code className="flex-1 bg-black/40 rounded-lg px-3 py-2 font-mono text-sky-300 font-bold text-sm">
+                  {tunnelAddress}
+                </code>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={copyAddress}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 text-sky-400 text-xs font-medium rounded-lg transition-colors"
+                  >
+                    {copied ? <><Check className="w-3.5 h-3.5" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
+                  </button>
+                  <button
+                    onClick={saveAsServerIp}
+                    disabled={savingIp}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                    title="Save this address as the server's join IP so it shows on the dashboard"
+                  >
+                    {savingIp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : savedIp ? <><Check className="w-3.5 h-3.5" /> Saved!</> : <><Save className="w-3.5 h-3.5" /> Set as Join IP</>}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {claimLink && (
-            <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="mt-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-emerald-400 font-semibold mb-1 flex items-center gap-2">
                   <LinkIcon className="w-4 h-4" /> Claim Link Generated
                 </h3>
-                <p className="text-sm text-emerald-400/80">Click the link to add this agent to your Playit.gg account.</p>
+                <p className="text-sm text-emerald-400/80">
+                  {tunnelAddress ? "Agent already claimed ✓" : "Click the link to add this agent to your Playit.gg account and get a real IP."}
+                </p>
               </div>
-              <a 
-                href={claimLink} 
-                target="_blank" 
-                rel="noreferrer"
-                className="px-4 py-2 bg-emerald-500 text-white font-medium rounded-lg text-sm hover:bg-emerald-600 transition-colors shrink-0 text-center shadow-sm"
-              >
-                Claim Agent
-              </a>
+              {!tunnelAddress && (
+                <a 
+                  href={claimLink} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="px-4 py-2 bg-emerald-500 text-white font-medium rounded-lg text-sm hover:bg-emerald-600 transition-colors shrink-0 text-center shadow-sm"
+                >
+                  Claim Agent
+                </a>
+              )}
             </div>
           )}
         </div>
