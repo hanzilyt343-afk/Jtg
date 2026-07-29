@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { readJSON, writeJSON } from "../services/db.js";
 import { createServerContainer, startContainer, stopContainer, restartContainer, deleteContainer, getContainerStatus, sendContainerCommand, attachContainerSocket, getContainerStats } from "../services/docker.js";
 import { createSftpUser, deleteSftpUser } from "../services/sftp.js";
+import { startPlayitTunnel, stopPlayitTunnel, pollAndPersistTunnelAddress, shouldAutoPlayit } from "../services/playit.js";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs-extra";
 import path from "path";
@@ -226,6 +227,15 @@ export const startServer = async (req: Request, res: Response) => {
       }
     }
     await attachContainerSocket(server.containerId, server.id);
+
+    // ── Auto-start Playit tunnel ──────────────────────────────────────────
+    if (shouldAutoPlayit(server.type)) {
+      startPlayitTunnel(server.id, server.name)
+        .then(() => pollAndPersistTunnelAddress(server.id, server.name))
+        .catch(e => console.error("[Playit] Auto-start failed:", e));
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     res.json({ success: true });
   } catch (err: any) {
     console.error("Start server error:", err);
@@ -250,6 +260,14 @@ export const stopServer = async (req: Request, res: Response) => {
         throw stopErr;
       }
     }
+
+    // ── Auto-stop Playit tunnel ───────────────────────────────────────────
+    if (shouldAutoPlayit(server.type)) {
+      stopPlayitTunnel(server.id, server.name)
+        .catch(e => console.error("[Playit] Auto-stop failed:", e));
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     res.json({ success: true });
   } catch (err: any) {
     console.error("Stop server error:", err);

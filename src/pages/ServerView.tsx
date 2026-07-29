@@ -287,6 +287,14 @@ export default function ServerView() {
                    ? <Check size={13} className="text-emerald-400 shrink-0" />
                    : <Copy size={13} className="text-emerald-500/60 group-hover:text-emerald-300 transition-colors shrink-0" />}
                </button>
+             ) : server.status === 'online' && !isVPS && !isProxy ? (
+               /* Tunnel is starting — show animated connecting badge */
+               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 shrink-0">
+                 <div className="w-2.5 h-2.5 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin shrink-0" />
+                 <span className="text-xs font-mono text-indigo-300/90 truncate max-w-[200px]">
+                   Playit tunnel connecting…
+                 </span>
+               </div>
              ) : (
                <button
                  onClick={handleCopyIp}
